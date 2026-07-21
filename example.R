@@ -1,6 +1,6 @@
 library(GLMMadaptive)
 library(ggplot2)
-source("make_chm_data.R")
+source("https://raw.githubusercontent.com/MarcusRowcliffe/make_chm_data/refs/heads/main/make_chm_data.R")
 
 # Load Ianarilli example data
 # observations
