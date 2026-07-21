@@ -10,11 +10,14 @@ require(hms)
 #' 
 #' INPUT
 #' deployments: a data frame of deployment data with required fields:
-#'  deploymentID, locationName, deploymentStart, deploymentEnd
+#'  deploymentID: unique deployment identifier, alphanumeric
+#'  locationName: deployment name, alphanumeric
+#'  deploymentStart, deploymentEnd: POSIXct deployment start and end times
 #' observations: a data frame of observation data with required fields:
-#'  deploymentID, timestamp
-#' nBins: number of time bins (default 24 = hourly)
-#' covs: vector of character covariates in deployments data
+#'  deploymentID: deployment identifier linking to deployments$deploymentID
+#'  timestamp: POSIXct time of observation
+#' nBins: integer number of time bins per day (default 24 = hourly)
+#' covs: vector of character covariate fields in deployments data
 #' collapse: whether to collapse data into location x time x covariate 
 #'  categories (see output)
 #'
@@ -28,8 +31,7 @@ require(hms)
 #'    collapse = TRUE
 #'      success, failure: respectively numbers of occasions with and without captures
 #'    collapse = FALSE
-#'      capture: a binary indicating whether any observations occurred in each
-#'        occasion
+#'      capture: a binary indicating whether any observations occurred in each occasion
 #'      occasionStart, occasionEnd: the start and end date-times of each occasion
 #'      
 make_chm_data <- function(deployments, observations,
@@ -37,11 +39,20 @@ make_chm_data <- function(deployments, observations,
                           covs = NULL,
                           collapse = TRUE){
   
-  required_dep_fields <- c("deploymentID", "locationName", "deploymentStart", "deploymentEnd")
+  required_dep_fields <- c("deploymentID", "locationName", 
+                           "deploymentStart", "deploymentEnd",
+                           covs)
   required_obs_fields <- c("deploymentID", "timestamp")
-  stopifnot(all(covs %in% names(deployments)))
-  stopifnot(all(required_dep_fields %in% names(deployments)))
-  stopifnot(all(required_obs_fields %in% names(observations)))
+  if(!all(required_dep_fields %in% names(deployments)))
+    stop(paste("deployments must contain columns:",
+               paste(required_dep_fields, collapse=", ")))
+  if(!all(required_obs_fields %in% names(observations)))
+    stop(paste("observations must contain columns:",
+               paste(required_obs_fields, collapse=", ")))
+  if(!(inherits(deployments$deploymentStart, "POSIXt") & 
+       inherits(deployments$deploymentEnd, "POSIXt") &
+       inherits(observations$timestamp, "POSIXt")))
+    stop("deploymentStart, deploymentEnd and timestamp must be POSIX values")
   
   timeSeq <- hms::as_hms(seq(0, 60^2*24, len=1+nBins))
   interval <- timeSeq[2]
