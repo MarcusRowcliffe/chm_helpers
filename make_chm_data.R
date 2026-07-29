@@ -99,3 +99,38 @@ make_chm_data <- function(deployments, observations,
   occasions
 }
 
+#' fit_chm
+#' Fit a circular hierarchical model, specifically a trigonometric binomial 
+#' GLMM.
+#' 
+#' INPUT
+#'  fixed: a formula for the fixed effects, typically:
+#'    cbind(success, failure) ~ ...
+#'  random: a formula for the random effects, typically for intercept only:
+#'    ~ 1 | locationName
+#'  type: Activity pattern type (number of activity peaks)
+#'  data: a dataframe containing the variables named in fixed and random formulae
+#'  
+#'  OUTPUT
+#'    A model object created by GLMMadaptive::mixed_model, with additional 
+#'    component fixed: the fixed effects formula
+
+fit_chm <- function(fixed, 
+                    random = ~ 1 | locationName, 
+                    type = c("bimodal", "unimodal", "uniform"),
+                    data = NULL){
+  type = match.arg(type)
+  if(type != "uniform"){
+    lhs <- fixed[[2]]
+    rhs <- fixed[[3]]
+    trigTerms <- switch(type,
+                        "unimodal" = quote(cos(timeRadian) + sin(timeRadian)),
+                        "bimodal" = quote(cos(timeRadian) + sin(timeRadian) + cos(2*timeRadian) + sin(2*timeRadian)))
+    rhs <- if(rhs==1) trigTerms else call("*", rhs, trigTerms)
+    fixed <- as.formula(call("~", lhs, rhs))
+  }
+  GLMMadaptive::mixed_model(fixed,
+                            random,
+                            family = binomial(),
+                            data = data)
+}
