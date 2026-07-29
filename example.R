@@ -36,45 +36,44 @@ datBear <- make_chm_data(dep,
                          covs=c("season", "ghm"))
 View(dat)
 
-#Fit basic models
-# Unimodal 
-unimodal <- mixed_model(fixed = cbind(success, failure) ~ cos(timeRadian) + sin(timeRadian), 
+# Fit basic models...
+# ...using mixed_model
+uniform <- mixed_model(fixed = cbind(success, failure) ~ 1,
+                       random = ~ 1 | locationName,
+                       family = binomial(),
+                       data = datBear)
+unimodal <- mixed_model(fixed = cbind(success, failure) ~ 
+                          cos(timeRadian) + sin(timeRadian),
                         random = ~ 1 | locationName,
                         family = binomial(),
                         data = datBear)
-summary(unimodal)
-
-# Bimodal 
 bimodal <- mixed_model(fixed = cbind(success, failure) ~ 
                          cos(timeRadian) + sin(timeRadian) +
                          cos(2*timeRadian) + sin(2*timeRadian), 
                        random = ~ 1 | locationName,
                        family = binomial(),
-                       data = datBear)
-summary(bimodal)
+                  data = datBear)
 
-# Cathemeral
-null_mod <- mixed_model(fixed = cbind(success, failure) ~ 1, 
-                        random = ~ 1 | locationName,
-                        family = binomial(),
-                        data = datBear)
-summary(null_mod)
+# ... using fit_chm
+uniform <- fit_chm(cbind(success, failure) ~ 1, type="uniform", data = datBear)
+unimodal <- fit_chm(cbind(success, failure) ~ 1, type="unimodal", data = datBear)
+bimodal <- fit_chm(fixed=cbind(success, failure) ~ 1, type="bimodal", data=datBear)
 
 # AIC comparison
-AIC(null_mod, unimodal, bimodal)
+AIC(uniform, unimodal, bimodal)
 
 # Generate predictions 
 newdat <- data.frame(timeRadian = seq(0, 24, len=100) * pi / 12)
 
+predict_uniform <- effectPlotData(uniform, newdat, marginal = FALSE) %>% 
+  mutate(Model = "Uniform")
 predict_unimodal <- effectPlotData(unimodal, newdat, marginal = FALSE) %>% 
   mutate(Model = "Unimodal")
 predict_bimodal <- effectPlotData(bimodal, newdat, marginal = FALSE) %>% 
   mutate(Model = "Bimodal")
-predict_cathemeral <- effectPlotData(null_mod, newdat, marginal = FALSE) %>% 
-  mutate(Model = "Cathemeral")
 
 # join and plot results
-rbind(predict_unimodal, predict_bimodal, predict_cathemeral) %>% 
+rbind(predict_unimodal, predict_bimodal, predict_uniform) %>% 
   ggplot(., aes(x = timeRadian, y = plogis(pred), group = Model, fill = Model)) +
   geom_line(aes(colour = Model)) +
   geom_ribbon(aes(ymin = plogis(low), ymax = plogis(upp), colour = NULL), alpha = 0.3) +
@@ -99,54 +98,19 @@ rbind(predict_unimodal, predict_bimodal, predict_cathemeral) %>%
 
 
 # Covariate models 
-bi_ssn <- mixed_model(fixed = cbind(success, failure) ~ 
-                        cos(timeRadian) * season + 
-                        sin(timeRadian) * season +
-                        cos(2*timeRadian) * season + 
-                        sin(2*timeRadian) * season, 
-                      random = ~ 1 | locationName,
-                      family = binomial(),
-                      data = datBear)
+bi_ssn <- fit_chm(cbind(success, failure) ~ season, type="bimodal", data=datBear)
+bi_ghm <- fit_chm(cbind(success, failure) ~ ghm, type="bimodal", data=datBear)
+bi_ssn_ghm <- fit_chm(cbind(success, failure) ~ season+ghm, type="bimodal", data=datBear)
+bi_ssnXghm <- fit_chm(cbind(success, failure) ~ season*ghm, type="bimodal", data=datBear)
 
-bi_ghm <- mixed_model(fixed = cbind(success, failure) ~ 
-                        cos(timeRadian) * ghm + 
-                        sin(timeRadian) * ghm +
-                        cos(2*timeRadian) * ghm + 
-                        sin(2*timeRadian) * ghm, 
-                      random = ~ 1 | locationName,
-                      family = binomial(),
-                      data = datBear)
-
-bi_ssn_ghm <- mixed_model(fixed = cbind(success, failure) ~ 
-                            cos(timeRadian) * (season + ghm) + 
-                            sin(timeRadian) * (season + ghm) +
-                            cos(2*timeRadian) * (season + ghm) + 
-                            sin(2*timeRadian) * (season + ghm), 
-                          random = ~ 1 | locationName,
-                          family = binomial(),
-                          data = datBear)
-
-summary(bi_ssn_ghm)
-
-bi_ssnXghm <- mixed_model(fixed = cbind(success, failure) ~ 
-                            cos(timeRadian) * season * ghm + 
-                            sin(timeRadian) * season * ghm +
-                            cos(2*timeRadian) * season * ghm + 
-                            sin(2*timeRadian) * season * ghm, 
-                          random = ~ 1 | locationName,
-                          family = binomial(),
-                          data = datBear)
-summary(bi_ssnXghm)
 AIC(bimodal, bi_ssn, bi_ghm, bi_ssn_ghm, bi_ssnXghm) %>%
   mutate(dAIC = AIC-min(AIC)) %>%
   arrange(AIC)
 
 # build estimate of activity
 newdat <- expand.grid(timeRadian = seq(0, 24, len=100) * pi / 12,
-                      season = levels(dat$season))
-newdat <- expand.grid(timeRadian = seq(0, 24, len=100) * pi / 12,
-                      season = levels(dat$season),
-                      ghm = quantile(dat$ghm, c(0.025, 0.975)))
+                      season = levels(datBear$season),
+                      ghm = quantile(datBear$ghm, c(0.025, 0.975)))
 pred_ssn <- effectPlotData(bi_ssn, newdat, marginal = FALSE) %>%
   mutate(ghm = ifelse(ghm==min(ghm), "Low", "High"))
 pred_ssn_ghm <- effectPlotData(bi_ssn_ghm, newdat, marginal = FALSE) %>%
