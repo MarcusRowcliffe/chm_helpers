@@ -36,35 +36,28 @@ datBear <- make_chm_data(dep,
                          covs=c("season", "ghm"))
 View(dat)
 
-#Fit basic models
-# Uniform
-uniform <- fit_chm(cbind(success, failure) ~ 1, type="uniform", data = datBear)
-null_mod <- mixed_model(fixed = cbind(success, failure) ~ 1,
+# Fit basic models...
+# ...using mixed_model
+uniform <- mixed_model(fixed = cbind(success, failure) ~ 1,
                        random = ~ 1 | locationName,
                        family = binomial(),
                        data = datBear)
-summary(uniform)
-identical(logLik(null_mod), logLik(uniform))
-
-# Unimodal 
-unimodal <- fit_chm(cbind(success, failure) ~ 1, type="unimodal", data = datBear)
-uni <- mixed_model(fixed = cbind(success, failure) ~ cos(timeRadian) + sin(timeRadian), 
+unimodal <- mixed_model(fixed = cbind(success, failure) ~ 
+                          cos(timeRadian) + sin(timeRadian),
                         random = ~ 1 | locationName,
                         family = binomial(),
                         data = datBear)
-identical(logLik(unimodal), logLik(uni))
-summary(unimodal)
-
-# Bimodal 
-bimodal <- fit_chm(fixed=cbind(success, failure) ~ 1, type="bimodal", data=datBear)
-bi <- mixed_model(fixed = cbind(success, failure) ~ 
+bimodal <- mixed_model(fixed = cbind(success, failure) ~ 
                          cos(timeRadian) + sin(timeRadian) +
                          cos(2*timeRadian) + sin(2*timeRadian), 
                        random = ~ 1 | locationName,
                        family = binomial(),
-                       data = datBear)
-summary(bimodal)
-identical(logLik(bimodal), logLik(bi))
+                  data = datBear)
+
+# ... using fit_chm
+uniform <- fit_chm(cbind(success, failure) ~ 1, type="uniform", data = datBear)
+unimodal <- fit_chm(cbind(success, failure) ~ 1, type="unimodal", data = datBear)
+bimodal <- fit_chm(fixed=cbind(success, failure) ~ 1, type="bimodal", data=datBear)
 
 # AIC comparison
 AIC(uniform, unimodal, bimodal)
@@ -72,12 +65,12 @@ AIC(uniform, unimodal, bimodal)
 # Generate predictions 
 newdat <- data.frame(timeRadian = seq(0, 24, len=100) * pi / 12)
 
+predict_uniform <- effectPlotData(uniform, newdat, marginal = FALSE) %>% 
+  mutate(Model = "Uniform")
 predict_unimodal <- effectPlotData(unimodal, newdat, marginal = FALSE) %>% 
   mutate(Model = "Unimodal")
 predict_bimodal <- effectPlotData(bimodal, newdat, marginal = FALSE) %>% 
   mutate(Model = "Bimodal")
-predict_uniform <- effectPlotData(uniform, newdat, marginal = FALSE) %>% 
-  mutate(Model = "Uniform")
 
 # join and plot results
 rbind(predict_unimodal, predict_bimodal, predict_uniform) %>% 
