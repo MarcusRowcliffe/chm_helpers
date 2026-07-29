@@ -5,7 +5,6 @@ source("https://raw.githubusercontent.com/MarcusRowcliffe/make_chm_data/refs/hea
 # Load Ianarilli example data
 # observations
 obs <- read.csv("data/species_records.csv") %>%
-  filter(Species == "BlackBear") %>% 
   droplevels %>% 
   select(-X) %>% 
   mutate(timestamp = ymd_hm(DateTimeOriginal),
@@ -32,7 +31,9 @@ dep <- read.csv("data/CameraTrapProject_CT_data_for_analysis_MASTER.csv", as.is 
 
 
 # Generate CHM data, porting season and ghm covariates from deployments
-dat <- make_chm_data(dep, obs, covs=c("season", "ghm"))
+datBear <- make_chm_data(dep, 
+                         subset(obs, Species == "BlackBear"),
+                         covs=c("season", "ghm"))
 View(dat)
 
 #Fit basic models
@@ -40,7 +41,7 @@ View(dat)
 unimodal <- mixed_model(fixed = cbind(success, failure) ~ cos(timeRadian) + sin(timeRadian), 
                         random = ~ 1 | locationName,
                         family = binomial(),
-                        data = dat)
+                        data = datBear)
 summary(unimodal)
 
 # Bimodal 
@@ -49,14 +50,14 @@ bimodal <- mixed_model(fixed = cbind(success, failure) ~
                          cos(2*timeRadian) + sin(2*timeRadian), 
                        random = ~ 1 | locationName,
                        family = binomial(),
-                       data = dat)
+                       data = datBear)
 summary(bimodal)
 
 # Cathemeral
 null_mod <- mixed_model(fixed = cbind(success, failure) ~ 1, 
                         random = ~ 1 | locationName,
                         family = binomial(),
-                        data = dat)
+                        data = datBear)
 summary(null_mod)
 
 # AIC comparison
@@ -105,8 +106,7 @@ bi_ssn <- mixed_model(fixed = cbind(success, failure) ~
                         sin(2*timeRadian) * season, 
                       random = ~ 1 | locationName,
                       family = binomial(),
-                      data = dat
-)
+                      data = datBear)
 
 bi_ghm <- mixed_model(fixed = cbind(success, failure) ~ 
                         cos(timeRadian) * ghm + 
@@ -115,7 +115,7 @@ bi_ghm <- mixed_model(fixed = cbind(success, failure) ~
                         sin(2*timeRadian) * ghm, 
                       random = ~ 1 | locationName,
                       family = binomial(),
-                      data = dat)
+                      data = datBear)
 
 bi_ssn_ghm <- mixed_model(fixed = cbind(success, failure) ~ 
                             cos(timeRadian) * (season + ghm) + 
@@ -124,7 +124,7 @@ bi_ssn_ghm <- mixed_model(fixed = cbind(success, failure) ~
                             sin(2*timeRadian) * (season + ghm), 
                           random = ~ 1 | locationName,
                           family = binomial(),
-                          data = dat)
+                          data = datBear)
 
 summary(bi_ssn_ghm)
 
@@ -135,7 +135,7 @@ bi_ssnXghm <- mixed_model(fixed = cbind(success, failure) ~
                             sin(2*timeRadian) * season * ghm, 
                           random = ~ 1 | locationName,
                           family = binomial(),
-                          data = dat)
+                          data = datBear)
 summary(bi_ssnXghm)
 AIC(bimodal, bi_ssn, bi_ghm, bi_ssn_ghm, bi_ssnXghm) %>%
   mutate(dAIC = AIC-min(AIC)) %>%
