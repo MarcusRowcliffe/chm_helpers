@@ -118,10 +118,10 @@ bi_ghm <- mixed_model(fixed = cbind(success, failure) ~
                       data = dat)
 
 bi_ssn_ghm <- mixed_model(fixed = cbind(success, failure) ~ 
-                            cos(timeRadian) * season + cos(timeRadian) * ghm + 
-                            sin(timeRadian) * season + sin(timeRadian) * ghm +
-                            cos(2*timeRadian) * season + cos(2*timeRadian) * ghm + 
-                            sin(2*timeRadian) * season + sin(2*timeRadian) * ghm, 
+                            cos(timeRadian) * (season + ghm) + 
+                            sin(timeRadian) * (season + ghm) +
+                            cos(2*timeRadian) * (season + ghm) + 
+                            sin(2*timeRadian) * (season + ghm), 
                           random = ~ 1 | locationName,
                           family = binomial(),
                           data = dat)
