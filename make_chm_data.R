@@ -1,6 +1,7 @@
 require(dplyr)
 require(lubridate)
 require(hms)
+require(glmmTMB)
 
 #' make_chm_data
 #' Function generates data for circular hierarchical modelling from standard 
@@ -99,38 +100,57 @@ make_chm_data <- function(deployments, observations,
   occasions
 }
 
-#' fit_chm
+#' chmTMB
 #' Fit a circular hierarchical model, specifically a trigonometric binomial 
-#' GLMM.
+#' GLMM, fitted using glmmTMB.
 #' 
 #' INPUT
-#'  fixed: a formula for the fixed effects, typically:
-#'    cbind(success, failure) ~ ...
-#'  random: a formula for the random effects, typically for intercept only:
-#'    ~ 1 | locationName
+#'  formula: a formula for the fixed effects, typically:
+#'    cbind(success, failure) ~ time + ...
+#'    time is a reserved term that is expanded into trigonometric terms internally
 #'  type: Activity pattern type (number of activity peaks)
-#'  data: a dataframe containing the variables named in fixed and random formulae
+#'  data: a dataframe containing radianTime and the variables named in formula
 #'  
 #'  OUTPUT
-#'    A model object created by GLMMadaptive::mixed_model, with additional 
-#'    component fixed: the fixed effects formula
-
-fit_chm <- function(fixed, 
-                    random = ~ 1 | locationName, 
-                    type = c("bimodal", "unimodal", "uniform"),
-                    data = NULL){
+#'    A model object created by glmmTMB::glmmTMB
+chmTMB <- function(formula, type = c("bimodal", "unimodal"), data = NULL){
   type = match.arg(type)
-  if(type != "uniform"){
-    lhs <- fixed[[2]]
-    rhs <- fixed[[3]]
-    trigTerms <- switch(type,
-                        "unimodal" = quote(cos(timeRadian) + sin(timeRadian)),
-                        "bimodal" = quote(cos(timeRadian) + sin(timeRadian) + cos(2*timeRadian) + sin(2*timeRadian)))
-    rhs <- if(rhs==1) trigTerms else call("*", rhs, trigTerms)
-    fixed <- as.formula(call("~", lhs, rhs))
-  }
-  GLMMadaptive::mixed_model(fixed,
-                            random,
-                            family = binomial(),
-                            data = data)
+  trigTerms <- switch(type,
+                      unmodal = "(cos(timeRadian) + sin(timeRadian))",
+                      bimodal = "(cos(timeRadian) + sin(timeRadian) + cos(2*timeRadian) + sin(2*timeRadian))")
+  formula <- as.formula(gsub("\\btime\\b", 
+                             trigTerms, 
+                             paste(deparse(formula), collapse = "")))
+  glmmTMB(formula, family=binomial, data=data)
+}
+
+#' predict.chm
+#' Predict activity probabilities from a CHM
+#' 
+#' INPUT
+#' mod: a model fit
+#' predictors: a named list of fixed effect values, expanded to all 
+#'    combinations internally if multiple elements provided
+#'    
+#' OUTPUT
+#' A dataframe containing, time, radian time, the predictor values, and:
+#'  fit: predicted values on the link scale
+#'  se.fit: standard errors of fit
+#'  response: predicted probabilities
+#'  lcl.response, ucl.response: lower and upper probability confidence limits
+predict.chm <- function(mod, predictors){
+  terms <- attr(terms(mod), "term.labels")
+  terms <- terms[!grepl("timeRadian", terms) & !grepl(":", terms)]
+  if(!all(terms %in% names(predictors)))
+    stop("Not all required predictors have been provided")
+  predictors <- predictors[names(predictors) %in% terms]
+  nd <- expand.grid(c(list(timeRadian = seq(0, 2*pi, len=100)), predictors))
+  predict(mod, newdata = nd, type = "link", 
+          se.fit=TRUE, re.form = NA) %>%
+    as.data.frame() %>%
+    dplyr::bind_cols(nd) %>%
+    mutate(time = timeRadian * 12 / pi, 
+           response = plogis(fit),
+           lcl.response = plogis(fit - 1.96 * se.fit),
+           ucl.response = plogis(fit + 1.96 * se.fit))
 }
