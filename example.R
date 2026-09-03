@@ -3,10 +3,9 @@ remove.packages("TMB")
 install.packages("glmmTMB")
 remove.packages("glmmTMB")
 
-library(GLMMadaptive)
 library(glmmTMB)
 library(ggplot2)
-source("https://raw.githubusercontent.com/MarcusRowcliffe/make_chm_data/refs/heads/main/make_chm_data.R")
+source("https://raw.githubusercontent.com/MarcusRowcliffe/make_chm_data/refs/heads/main/chm_helpers.R")
 
 # Load Ianarilli example data
 # observations
@@ -131,36 +130,36 @@ AIC(TxSxH_SxHxL, TxSxH_SxL, TxSpH_SxL, TxHpS_SxL, TpSxH_SxL, TpSpH_SxL, TxS_SxL,
   arrange(dAIC)
 summary(TxSpH_SxL)
 
-predict.chm(TxS_SxL, list(season = levels(dat$season))) %>%
+predict(TxS_SxL, list(season = levels(dat$season))) %>%
   mutate(season = ifelse(season=="F", "Fall", "Spring")) %>%
   ggplot(aes(time, response, col=season)) +
-  geom_ribbon(aes(ymin = lcl.response, ymax = ucl.response, fill = season), 
-              col = NA, alpha = 0.2) +
-  geom_line() +
-  scale_x_continuous(breaks=seq(0, 24, len=5)) +
-  theme_classic()
+    geom_ribbon(aes(ymin = lcl.response, ymax = ucl.response, fill = season), 
+                col = NA, alpha = 0.2) +
+    geom_line() +
+    scale_x_continuous(breaks=seq(0, 24, len=5)) +
+    theme_classic()
 
-predict.chm(TxSpH_SxL, list(season = levels(dat$season),
-                            ghm = quantile(dat$ghm, c(0.025, 0.975)))) %>%
+predict(TxSpH_SxL, list(season = levels(dat$season),
+                        ghm = quantile(dat$ghm, c(0.025, 0.975)))) %>%
   mutate(ghm_level = ifelse(ghm==min(ghm), "Low", "High"),
          season = ifelse(season=="F", "Fall", "Spring")) %>%
   ggplot(aes(time, response, col=season, group=interaction(season, ghm_level))) +
-  geom_ribbon(aes(ymin = lcl.response, ymax = ucl.response, fill = season), 
-              col = NA, alpha = 0.2) +
-  geom_line() +
-  scale_x_continuous(breaks=seq(0, 24, len=5)) +
-  facet_grid(~ghm_level) +
-  theme_classic()
+    geom_ribbon(aes(ymin = lcl.response, ymax = ucl.response, fill = season), 
+                col = NA, alpha = 0.2) +
+    geom_line() +
+    scale_x_continuous(breaks=seq(0, 24, len=5)) +
+    facet_grid(~ghm_level) +
+    theme_classic()
 
-predict.chm(TxSxH_SxHxL, list(season = levels(dat$season),
-                              ghm = quantile(dat$ghm, c(0.025, 0.975)))) %>%
+predict(TxSxH_SxHxL, list(season = levels(dat$season),
+                          ghm = quantile(dat$ghm, c(0.025, 0.975)))) %>%
   mutate(ghm_level = ifelse(ghm==min(ghm), "Low", "High"),
          season = ifelse(season=="F", "Fall", "Spring")) %>%
   ggplot(aes(time, response, col=season, group=interaction(season, ghm_level))) +
-  geom_ribbon(aes(ymin = lcl.response, ymax = ucl.response, fill = season), 
-              col = NA, alpha = 0.2) +
-  geom_line() +
-  scale_x_continuous(breaks=seq(0, 24, len=5)) +
-  facet_grid(~ghm_level) +
-  theme_classic()
-
+    geom_ribbon(aes(ymin = lcl.response, ymax = ucl.response, fill = season), 
+                col = NA, alpha = 0.2) +
+    geom_line() +
+    scale_x_continuous(breaks=seq(0, 24, len=5)) +
+    facet_grid(~ghm_level) +
+    theme_classic()
+  

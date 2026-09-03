@@ -121,7 +121,9 @@ chmTMB <- function(formula, type = c("bimodal", "unimodal"), data = NULL){
   formula <- as.formula(gsub("\\btime\\b", 
                              trigTerms, 
                              paste(deparse(formula), collapse = "")))
-  glmmTMB(formula, family=binomial, data=data)
+  mod <- glmmTMB(formula, family=binomial, data=data)
+  class(mod) <- c("chmTMB", class(mod))
+  mod
 }
 
 #' predict.chm
@@ -138,15 +140,15 @@ chmTMB <- function(formula, type = c("bimodal", "unimodal"), data = NULL){
 #'  se.fit: standard errors of fit
 #'  response: predicted probabilities
 #'  lcl.response, ucl.response: lower and upper probability confidence limits
-predict.chm <- function(mod, predictors){
-  terms <- attr(terms(mod), "term.labels")
+predict.chmTMB <- function(object, predictors){
+  terms <- attr(terms(object), "term.labels")
   terms <- terms[!grepl("timeRadian", terms) & !grepl(":", terms)]
   if(!all(terms %in% names(predictors)))
     stop("Not all required predictors have been provided")
   predictors <- predictors[names(predictors) %in% terms]
   nd <- expand.grid(c(list(timeRadian = seq(0, 2*pi, len=100)), predictors))
-  predict(mod, newdata = nd, type = "link", 
-          se.fit=TRUE, re.form = NA) %>%
+  class(object) <- "glmmTMB"
+  predict(object, newdata=nd, se.fit=TRUE, re.form=NA) %>%
     as.data.frame() %>%
     dplyr::bind_cols(nd) %>%
     mutate(time = timeRadian * 12 / pi, 
