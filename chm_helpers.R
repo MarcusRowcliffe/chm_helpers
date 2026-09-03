@@ -110,10 +110,11 @@ make_chm_data <- function(deployments, observations,
 #'    time is a reserved term that is expanded into trigonometric terms internally
 #'  type: Activity pattern type (number of activity peaks)
 #'  data: a dataframe containing radianTime and the variables named in formula
+#'  ...: additional arguments passed to glmmTMB
 #'  
 #'  OUTPUT
 #'    A model object created by glmmTMB::glmmTMB
-chmTMB <- function(formula, type = c("bimodal", "unimodal"), data = NULL){
+chmTMB <- function(formula, type = c("bimodal", "unimodal"), data = NULL, ...){
   type = match.arg(type)
   trigTerms <- switch(type,
                       unmodal = "(cos(timeRadian) + sin(timeRadian))",
@@ -121,7 +122,7 @@ chmTMB <- function(formula, type = c("bimodal", "unimodal"), data = NULL){
   formula <- as.formula(gsub("\\btime\\b", 
                              trigTerms, 
                              paste(deparse(formula), collapse = "")))
-  mod <- glmmTMB(formula, family=binomial, data=data)
+  mod <- glmmTMB(formula, family=binomial, data=data, ...)
   class(mod) <- c("chmTMB", class(mod))
   mod
 }
