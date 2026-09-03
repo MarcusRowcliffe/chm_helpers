@@ -35,7 +35,7 @@ dep <- read.csv("data/CameraTrapProject_CT_data_for_analysis_MASTER.csv", as.is 
          deploymentID = paste(Session, Site, sep="_"),
          cluster = gsub("[^0-9]", "", Site)) %>%
   rename(locationName = Site)
-
+View(dep)
 
 # Generate CHM data, porting season and ghm covariates from deployments
 dat <- make_chm_data(dep,
@@ -112,6 +112,9 @@ TxSxH_L <- chmTMB(cbind(success, failure) ~ time * season * ghm + (1 | locationN
 BIC(TxSxH_C_SxHxL, TxSxH_C_SxL, TxSxH_C_HxL, TxSxH_C_L, TxSxH_SxHxL, TxSxH_SxL, TxSxH_HxL, TxSxH_L) %>%
   mutate(dBIC = BIC - min(BIC, na.rm=TRUE)) %>%
   arrange(dBIC)
+AIC(TxSxH_C_SxHxL, TxSxH_C_SxL, TxSxH_C_HxL, TxSxH_C_L, TxSxH_SxHxL, TxSxH_SxL, TxSxH_HxL, TxSxH_L) %>%
+  mutate(dAIC = AIC - min(AIC, na.rm=TRUE)) %>%
+  arrange(dAIC)
 
 TxSpH_SxL <- chmTMB(cbind(success, failure) ~ time * season + ghm + (1 + season | locationName), data=dat)
 TxHpS_SxL <- chmTMB(cbind(success, failure) ~ time * ghm + season + (1 + season | locationName), data=dat)
@@ -124,8 +127,9 @@ TpH_L <- chmTMB(cbind(success, failure) ~ time + ghm + (1 | locationName), data=
 T_L <- chmTMB(cbind(success, failure) ~ time + (1 | locationName), data=dat)
 # Check model support
 AIC(TxSxH_SxHxL, TxSxH_SxL, TxSpH_SxL, TxHpS_SxL, TpSxH_SxL, TpSpH_SxL, TxS_SxL, TxH_L, TpS_SxL, TpH_L, T_L) %>%
-  mutate(dBIC = AIC - min(AIC, na.rm=TRUE)) %>%
-  arrange(dBIC)
+  mutate(dAIC = AIC - min(AIC, na.rm=TRUE)) %>%
+  arrange(dAIC)
+summary(TxSpH_SxL)
 
 predict.chm(TxS_SxL, list(season = levels(dat$season))) %>%
   mutate(season = ifelse(season=="F", "Fall", "Spring")) %>%
@@ -137,7 +141,7 @@ predict.chm(TxS_SxL, list(season = levels(dat$season))) %>%
   theme_classic()
 
 predict.chm(TxSpH_SxL, list(season = levels(dat$season),
-                        ghm = quantile(dat$ghm, c(0.025, 0.975)))) %>%
+                            ghm = quantile(dat$ghm, c(0.025, 0.975)))) %>%
   mutate(ghm_level = ifelse(ghm==min(ghm), "Low", "High"),
          season = ifelse(season=="F", "Fall", "Spring")) %>%
   ggplot(aes(time, response, col=season, group=interaction(season, ghm_level))) +
